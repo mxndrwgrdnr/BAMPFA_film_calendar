@@ -1,6 +1,7 @@
 import requests
 from lxml import html
 import lxml
+import logging
 import os
 from apiclient import discovery
 from oauth2client import client
@@ -11,9 +12,9 @@ import httplib2
 from datetime import datetime, timedelta
 import re
 
+
 SCOPES = 'https://www.googleapis.com/auth/calendar'
-CLIENT_SECRET_FILE = 'client_secret_254466080681-' \
-    + 'liol8nsgiko02e8n48el5euov2mlpjuk.apps.googleusercontent.com.json'
+CLIENT_SECRET_FILE = 'client_secret.json'
 APPLICATION_NAME = 'BAMPFA Calendar Scraper'
 flags = argparse.ArgumentParser(parents=[tools.argparser]).parse_args()
 base_url = '''http://www.bampfa.berkeley.edu'''
@@ -77,11 +78,11 @@ def post_event(event_id, title, description, start_dttm, end_dttm):
     }
     try:
         service.events().get(calendarId=cal_id, eventId=event_id).execute()
-        print 'dupe'
+        return 'dupe'
     except:
         event = service.events(). \
             insert(calendarId=cal_id, body=event).execute()
-        print 'Event created: %s' % (event.get('htmlLink'))
+        return 'Event created: %s' % (event.get('htmlLink'))
 
 
 def scrape_6_mos(calendar, session):
@@ -150,12 +151,43 @@ def scrape_6_mos(calendar, session):
 
 
 def main():
+
+    ts = datetime.now().strftime('%Y%m%d-%H%M%S')
+    log_fname = './logs/' + 'calendar_scrape-' \
+        + ts + '.log'
+    logging.basicConfig(filename=log_fname, level=logging.INFO,
+                        format='%(message)s')
+    logging.getLogger('requests').setLevel(logging.WARNING)
+    logging.getLogger('apiclient').setLevel(logging.WARN)
+    logging.info('Starting to scrape')
+
     s = requests.Session()
+    logging.info('Calling URL')
     cur_month_cal = s.get(
         base_url + "/visit/calendar?calendar_filter%5B%5D=47490")
+    logging.info('Got calendar')
     films = scrape_6_mos(cur_month_cal, s)
+    logging.info('Found {0} films. Sending to calendar.'.format(len(films)))
+
+    posts = 0
+    dupes = 0
+    failures = 0
+
     for film in films:
-        post_event(*film)
+        try:
+            result = post_event(*film)
+            if result == 'dupe':
+                dupes += 1
+            else:
+                logging.info(result)
+                posts += 1
+        except:
+            failures += 1
+            logging.info('Failed to post event: {0}'.format(film))
+
+    logging.info('Scrape complete')
+    logging.info('New events: {0} // Duplicates: {1} // Failures: {2}'.format(
+        posts, dupes, failures))
 
 
 if __name__ == '__main__':
