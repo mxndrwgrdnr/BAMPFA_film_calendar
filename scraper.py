@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 import re
 
 
+httplib2.debuglevel = 0
 SCOPES = 'https://www.googleapis.com/auth/calendar'
 CLIENT_SECRET_FILE = 'client_secret.json'
 APPLICATION_NAME = 'BAMPFA Calendar Scraper'
