@@ -91,3 +91,4 @@ ENV/
 
 # Google API client credentials file
 client_secret*.json
+*.json
